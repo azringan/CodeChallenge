@@ -25,8 +25,19 @@ public class KeyGen
         KeyPair keyPair = keyPairGen.generateKeyPair();
         System.out.println("Generate RSA Key Pair done");
 
-        // create location folder to store the keys
-        Files.createDirectories(Path.of("keys"));
+        // check if keys folder exist
+        String outputPathDir = (args.length > 0) ? args[0] : "keys";
+        Path existKeyPath = Path.of(outputPathDir);
+        if (Files.isDirectory(existKeyPath))
+        {
+            System.out.println("Path exist at: " + existKeyPath.toAbsolutePath());
+        }
+        else
+        {
+            // create location folder to store the keys
+            Files.createDirectories(existKeyPath);
+            System.out.println("Path created at: " + existKeyPath.toAbsolutePath());
+        }
 
         // save public key in X.509 format
         System.out.println("Save public key in X.509 format start");
@@ -35,7 +46,7 @@ public class KeyGen
         String publicKeyPem = "-----BEGIN PUBLIC KEY-----\n" +
                               publicKeyBase64 + "\n" +
                               "-----END PUBLIC KEY-----\n";
-        Path publicKeyPath = Path.of("keys","public_key.pem");
+        Path publicKeyPath = Path.of(outputPathDir, "public_key.pem");
         Files.writeString(publicKeyPath, publicKeyPem);
         System.out.println("Public key saved to: " + publicKeyPath.toAbsolutePath());
 
@@ -46,7 +57,7 @@ public class KeyGen
         String privateKeyPem = "-----BEGIN PRIVATE KEY-----\n" +
                               privateKeyBase64 + "\n" +
                               "-----END PRIVATE KEY-----\n";
-        Path privateKeyPath = Path.of("keys","private_key.pem");
+        Path privateKeyPath = Path.of(outputPathDir, "private_key.pem");
         Files.writeString(privateKeyPath, privateKeyPem);
         System.out.println("Private key saved to: " + privateKeyPath.toAbsolutePath());
     }

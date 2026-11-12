@@ -1,1 +1,14 @@
-keys/private_key.pem
+# --- Private keys: never commit ---
+# A pattern without a "/" matches in ANY folder (keys/, src/keys/, anywhere else).
+*private*.pem
+*.key
+
+# --- Stray output when the program is run from inside src/ ---
+src/keys/
+
+# --- Java build output ---
+*.class
+
+# --- Editor / OS files ---
+.vscode/
+Thumbs.db
