@@ -3,8 +3,146 @@
 // Application that will encrypt and decrypt the file using the RSA key pair generated.
 //
 // Dev: Azrin Gan
-// Date: 2026-11-12
+// Date: 2026-11-14
+
+//include library here
+import java.io.*;
+import java.nio.file.*;
+import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+import javax.crypto.*;
+import javax.crypto.spec.*;
 
 public class FileCrypto {
-    
+
+    private static final String PUBLIC_KEY_FILE = "public_key.pem"; 
+    private static final String PRIVATE_KEY_FILE = "private_key.pem"; 
+    private static final String RSA_TRANSFORM = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
+    private static final String AES_TRANSFORM = "AES/CBC/PKCS5padding";
+
+    public static void main(String[] args) throws Exception
+    {
+        if (args.length < 4)
+        {
+            System.out.println("Usage: java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
+            System.out.println("Usage: java src/FileCrypto.java decrypt <inputFile> <privateKeyPem> <outputFile>");
+            return;
+        }
+
+        String mode = args[0];
+        Path inputFilePath = Path.of(args[1]);
+        Path outputFilePath = Path.of(args[3]);
+
+        //check args[2]
+        if (mode.equals("encrypt"))
+        {
+            PublicKey publicKey = loadPublicKey(PUBLIC_KEY_FILE);
+            encryptFile(inputFilePath, outputFilePath, publicKey);
+            System.out.println("Encrypted: " + outputFilePath);
+        }
+        else if (mode.equals("decrypt"))
+        {
+            PrivateKey privateKey = loadPrivateKey(PRIVATE_KEY_FILE);
+            decryptFile(inputFilePath, outputFilePath, privateKey);
+            System.out.println("Decrypted: " + outputFilePath);
+        }
+    }
+
+    private static PublicKey loadPublicKey(String path) throws Exception
+    {
+        String keyPem = Files.readString(Path.of(path));
+        String keyBase64 = keyPem.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "");
+        byte[] der = Base64.getMimeDecoder().decode(keyBase64);
+
+        return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
+    }
+
+    private  static PrivateKey loadPrivateKey(String path) throws Exception
+    {
+        String keyPem = Files.readString(Path.of(path));
+        String keyBase64 = keyPem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "");
+        byte[] der = Base64.getMimeDecoder().decode(keyBase64);
+
+        return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+    }
+
+    private static void encryptFile(Path inputPath, Path outputPath, PublicKey publicKey) throws Exception
+    {
+        //generate random AES key
+        KeyGenerator aesKeyGen = KeyGenerator.getInstance("AES");
+        aesKeyGen.init(256);
+        SecretKey aesSecretKey = aesKeyGen.generateKey();
+
+        //encrypt AES key with RSA
+        Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
+        rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        byte[] encryptedAeskey = rsaCipher.doFinal(aesSecretKey.getEncoded());
+
+        //ecnrypt file
+        byte[] IV = new byte[16];
+        SecureRandom secureRandom = new SecureRandom();
+        secureRandom.nextBytes(IV);
+
+        Cipher aesCipher = Cipher.getInstance(AES_TRANSFORM);
+        aesCipher.init(Cipher.ENCRYPT_MODE, aesSecretKey, new IvParameterSpec(IV));
+
+        try (FileOutputStream fileOutputStream = new  FileOutputStream(outputPath.toFile());
+             DataOutputStream dataOutputStream = new DataOutputStream(fileOutputStream);
+             FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
+             CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, aesCipher))
+        {
+            //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data]
+            dataOutputStream.writeInt(encryptedAeskey.length);
+            dataOutputStream.write(encryptedAeskey);
+            dataOutputStream.write(IV);
+
+            //stream encrypted data
+            byte[] byteBuffer = new byte[8192];
+            int n;
+            while ((n = cipherInputStream.read(byteBuffer)) != -1)
+            {
+                dataOutputStream.write(byteBuffer, 0, n);
+            }
+            cipherInputStream.close();
+        }
+    }
+
+    private static void decryptFile(Path inpuPath, Path outpuPath, PrivateKey privateKey) throws Exception
+    {
+        try (FileInputStream fileInputStream = new FileInputStream(inpuPath.toFile());
+             DataInputStream dataInputStream = new DataInputStream(fileInputStream);
+             FileOutputStream fileOutputStream = new FileOutputStream(outpuPath.toFile()))
+        {
+            //read encrypted AES
+            int nKeyLength = dataInputStream.readInt();
+            byte[] byteEncryptedAeskey = new byte[nKeyLength];
+            dataInputStream.readFully(byteEncryptedAeskey);
+
+            //read IV
+            byte[] IV = new byte[16];
+            dataInputStream.readFully(IV);
+
+            //decrypt AES key with RSA
+            Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
+            rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            byte[] byteAesKey = rsaCipher.doFinal(byteEncryptedAeskey);
+            SecretKey secretAesKey = new SecretKeySpec(byteAesKey, "AES");
+
+            //decrypt file with AES
+            Cipher aesCipher = Cipher.getInstance(AES_TRANSFORM);
+            aesCipher.init(Cipher.DECRYPT_MODE, secretAesKey, new IvParameterSpec(IV));
+
+            CipherInputStream cipherInputStream = new CipherInputStream(dataInputStream, aesCipher);
+            byte[] byteBuffer = new byte[8192];
+            int n;
+            while ((n = cipherInputStream.read(byteBuffer)) != -1)
+            {
+                fileOutputStream.write(byteBuffer, 0, n);
+            }
+            cipherInputStream.close();
+        }
+    }
 }
