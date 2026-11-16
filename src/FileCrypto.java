@@ -25,16 +25,35 @@ public class FileCrypto {
 
     public static void main(String[] args) throws Exception
     {
-        if (args.length < 4)
+        if (args.length != 4 || !(args[0].equals("encrypt")) || !(args[0].equals("decrypt")))
         {
-            System.out.println("Usage: java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
-            System.out.println("Usage: java src/FileCrypto.java decrypt <inputFile> <privateKeyPem> <outputFile>");
-            return;
+            System.out.println("Usage:");
+            System.out.println("java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
+            System.out.println("java src/FileCrypto.java decrypt <inputFile> <privateKeyPem> <outputFile>");
+            System.exit(1);
         }
 
         String mode = args[0];
         Path inputFilePath = Path.of(args[1]);
+        Path keyPath = Path.of(args[2]);
         Path outputFilePath = Path.of(args[3]);
+
+        //validate each path
+        if (!Files.isRegularFile(inputFilePath))
+        {
+            System.err.println("Input file not found: " + inputFilePath.toAbsolutePath());
+            System.exit(1);
+        }
+        if (!Files.isRegularFile(keyPath))
+        {
+            System.err.println("Key file not found: " + keyPath.toAbsolutePath());
+            System.exit(1);
+        }
+        if (Files.exists(outputFilePath))
+        {
+            System.err.println("Output file already exists, not overwriting: " + outputFilePath.toAbsolutePath());
+            System.exit(1);
+        }
 
         //check args[2]
         if (mode.equals("encrypt"))
