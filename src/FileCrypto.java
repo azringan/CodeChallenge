@@ -80,22 +80,35 @@ public class FileCrypto {
         }
     }
 
-    private static PublicKey loadPublicKey(String path) throws Exception
+    private static PublicKey loadPublicKey(Path path) throws Exception
     {
-        String keyPem = Files.readString(Path.of(path));
-        String keyBase64 = keyPem.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "");
-        byte[] der = Base64.getMimeDecoder().decode(keyBase64);
+        byte[] der = convertPemToDer(Files.readString(path), "PUBLIC KEY");
 
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
     }
 
-    private  static PrivateKey loadPrivateKey(String path) throws Exception
+    private  static PrivateKey loadPrivateKey(Path path) throws Exception
     {
-        String keyPem = Files.readString(Path.of(path));
-        String keyBase64 = keyPem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "");
-        byte[] der = Base64.getMimeDecoder().decode(keyBase64);
+        byte[] der = convertPemToDer(Files.readString(path), "PRIVATE KEY");
 
         return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+    }
+
+    private static byte[] convertPemToDer(String pem, String type)
+    {
+        String begin = "-----BEGIN " + type + "-----";
+        String end = "-----END " + type + "-----";
+
+        int start = pem.indexOf(begin);
+        int stop = pem.indexOf(end);
+
+        if (start < 0 || stop < 0)
+        {
+            throw new IllegalArgumentException("Not a PEM " + type + "file.");
+        }
+
+        String keyBase64 = pem.substring(start + begin.length(), stop);
+        return Base64.getMimeDecoder().decode(keyBase64);
     }
 
     private static void encryptFile(Path inputPath, Path outputPath, PublicKey publicKey) throws Exception
