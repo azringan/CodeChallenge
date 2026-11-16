@@ -6,7 +6,6 @@
 // Dev: Azrin Gan
 // Date: 2026-11-13
 
-//include library here
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,7 +14,6 @@ import java.util.HexFormat;
 
 public class HashFile 
 {
-    // declare const var
     private static final int BUFFER_SIZE = 8192; // read a file with 8 KB size 
 
     public static void main(String[] args) throws Exception

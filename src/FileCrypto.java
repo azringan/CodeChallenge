@@ -17,9 +17,7 @@ import javax.crypto.*;
 import javax.crypto.spec.*;
 
 public class FileCrypto {
-
-    private static final String PUBLIC_KEY_FILE = "public_key.pem"; 
-    private static final String PRIVATE_KEY_FILE = "private_key.pem"; 
+    
     private static final String RSA_TRANSFORM = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
     private static final String AES_TRANSFORM = "AES/CBC/PKCS5padding";
 
@@ -59,11 +57,11 @@ public class FileCrypto {
         try 
         {
             if (mode.equals("encrypt")) {
-                PublicKey publicKey = loadPublicKey(PUBLIC_KEY_FILE);
+                PublicKey publicKey = loadPublicKey(keyPath);
                 encryptFile(inputFilePath, outputFilePath, publicKey);
                 System.out.println("Encrypted: " + outputFilePath);
             } else if (mode.equals("decrypt")) {
-                PrivateKey privateKey = loadPrivateKey(PRIVATE_KEY_FILE);
+                PrivateKey privateKey = loadPrivateKey(keyPath);
                 decryptFile(inputFilePath, outputFilePath, privateKey);
                 System.out.println("Decrypted: " + outputFilePath);
             }

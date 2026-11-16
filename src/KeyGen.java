@@ -6,7 +6,6 @@
 // Dev: Azrin Gan
 // Date: 2026-11-12
 
-// include library here
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
@@ -15,7 +14,6 @@ import java.util.Base64;
 
 public class KeyGen
 {
-    // declare const var
     private static final int KEY_SIZE = 2048;
     private static final String DEFAULT_KEY_DIR = "keys";
     private static final String PUBLIC_KEY_FILE = "public_key.pem"; 
