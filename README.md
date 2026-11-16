@@ -1,4 +1,4 @@
-# AMD Code Challenge
+# Code Challenge
 
 Three small Java command-line applications:
 
