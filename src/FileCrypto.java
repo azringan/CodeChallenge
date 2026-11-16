@@ -133,7 +133,7 @@ public class FileCrypto
     // Encrypt file
     // Generate random AES key and encrypt the key with RSA
     // Generate Initialization Vector (IV) in the AES
-    // Write in [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data + 16-byte auth tag]
+    // Write in [4 bytes AES key length][encrypted AES key][12 bytes IV][encrypted data + 16-byte auth tag]
     private static void encryptFile(Path inputPath, Path outputPath, PublicKey publicKey) throws Exception
     {
         //generate random AES key
@@ -160,7 +160,7 @@ public class FileCrypto
              FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
              CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, aesCipher))
         {
-            //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data + 16-byte auth tag]
+            //write: [4 bytes AES key length][encrypted AES key][12 bytes IV][encrypted data + 16-byte auth tag]
             //write header
             dataOutputStream.writeInt(encryptedAesKey.length);
             dataOutputStream.write(encryptedAesKey);
