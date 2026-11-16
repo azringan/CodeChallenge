@@ -17,11 +17,12 @@ import javax.crypto.spec.*;
 public class FileCrypto
 {
     private static final String RSA_TRANSFORM = "RSA/ECB/OAEPPadding";
-    private static final String AES_TRANSFORM = "AES/CBC/PKCS5Padding";
+    private static final String AES_TRANSFORM = "AES/GCM/NoPadding";
     private static final int BUFFER_SIZE = 8192;
     private static final int MAX_ENCRYPTED_KEY_LENGTH = 1024;   // bytes; RSA-2048 gives 256
     private static final int AES_KEY_BITS = 256;
-    private static final int IV_BYTES = 16;
+    private static final int IV_BYTES = 12;                     // CBC use 16. GCM use 12, standard nonce(number used once) size
+    private static final int GCM_AUTH_TAG_BITS = 128;           // 16 byte authentication tag
     private static final OAEPParameterSpec OAEP_SHA256 = new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
 
     public static void main(String[] args) throws Exception
@@ -132,7 +133,7 @@ public class FileCrypto
     // Encrypt file
     // Generate random AES key and encrypt the key with RSA
     // Generate Initialization Vector (IV) in the AES
-    // Write in [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data]
+    // Write in [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data + 16-byte auth tag]
     private static void encryptFile(Path inputPath, Path outputPath, PublicKey publicKey) throws Exception
     {
         //generate random AES key
@@ -151,7 +152,7 @@ public class FileCrypto
         secureRandom.nextBytes(IV);
 
         Cipher aesCipher = Cipher.getInstance(AES_TRANSFORM);
-        aesCipher.init(Cipher.ENCRYPT_MODE, aesSecretKey, new IvParameterSpec(IV));
+        aesCipher.init(Cipher.ENCRYPT_MODE, aesSecretKey, new GCMParameterSpec(GCM_AUTH_TAG_BITS, IV));
 
         //open I/O files, write header to output, stream read input as AES encrypted
         try (FileOutputStream fileOutputStream = new FileOutputStream(outputPath.toFile());
@@ -159,7 +160,7 @@ public class FileCrypto
              FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
              CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, aesCipher))
         {
-            //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data]
+            //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data + 16-byte auth tag]
             //write header
             dataOutputStream.writeInt(encryptedAesKey.length);
             dataOutputStream.write(encryptedAesKey);
@@ -207,7 +208,7 @@ public class FileCrypto
 
             //decrypt file with AES
             Cipher aesCipher = Cipher.getInstance(AES_TRANSFORM);
-            aesCipher.init(Cipher.DECRYPT_MODE, secretAesKey, new IvParameterSpec(IV));
+            aesCipher.init(Cipher.DECRYPT_MODE, secretAesKey, new GCMParameterSpec(GCM_AUTH_TAG_BITS, IV));
 
             //only create the output file after checking header and key are good
             try (CipherInputStream cipherInputStream = new CipherInputStream(dataInputStream, aesCipher);
