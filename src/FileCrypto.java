@@ -17,13 +17,13 @@ import javax.crypto.*;
 import javax.crypto.spec.*;
 
 public class FileCrypto {
-    
+
     private static final String RSA_TRANSFORM = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
     private static final String AES_TRANSFORM = "AES/CBC/PKCS5padding";
 
     public static void main(String[] args) throws Exception
     {
-        if (args.length != 4 || !(args[0].equals("encrypt")) || !(args[0].equals("decrypt")))
+        if (args.length != 4 || !(args[0].equals("encrypt") || args[0].equals("decrypt")))
         {
             System.out.println("Usage:");
             System.out.println("java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
