@@ -5,7 +5,6 @@
 // Dev: Azrin Gan
 // Date: 2026-11-14
 
-//include library here
 import java.io.*;
 import java.nio.file.*;
 import java.security.*;
@@ -19,9 +18,11 @@ import javax.crypto.spec.*;
 public class FileCrypto {
 
     private static final String RSA_TRANSFORM = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
-    private static final String AES_TRANSFORM = "AES/CBC/PKCS5padding";
+    private static final String AES_TRANSFORM = "AES/CBC/PKCS5Padding";
     private static final int BUFFER_SIZE = 8192;
     private static final int MAX_ENCRYPTED_KEY_LENGTH = 1024;   // bytes; RSA-2048 gives 256
+    private static final int AES_KEY_BITS = 256;
+    private static final int IV_BYTES = 16;
 
     public static void main(String[] args) throws Exception
     {
@@ -104,7 +105,7 @@ public class FileCrypto {
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
     }
 
-    private  static PrivateKey loadPrivateKey(Path path) throws Exception
+    private static PrivateKey loadPrivateKey(Path path) throws Exception
     {
         byte[] der = convertPemToDer(Files.readString(path), "PRIVATE KEY");
 
@@ -136,16 +137,16 @@ public class FileCrypto {
     {
         //generate random AES key
         KeyGenerator aesKeyGen = KeyGenerator.getInstance("AES");
-        aesKeyGen.init(256);
+        aesKeyGen.init(AES_KEY_BITS);
         SecretKey aesSecretKey = aesKeyGen.generateKey();
 
         //encrypt AES key with RSA
         Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
         rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        byte[] encryptedAeskey = rsaCipher.doFinal(aesSecretKey.getEncoded());
+        byte[] encryptedAesKey = rsaCipher.doFinal(aesSecretKey.getEncoded());
 
         //generate random initialization vector (IV) in AES
-        byte[] IV = new byte[16];
+        byte[] IV = new byte[IV_BYTES];
         SecureRandom secureRandom = new SecureRandom();
         secureRandom.nextBytes(IV);
 
@@ -153,14 +154,14 @@ public class FileCrypto {
         aesCipher.init(Cipher.ENCRYPT_MODE, aesSecretKey, new IvParameterSpec(IV));
 
         //open I/O files, write header to output, stream read input as AES encrypted
-        try (FileOutputStream fileOutputStream = new  FileOutputStream(outputPath.toFile());
+        try (FileOutputStream fileOutputStream = new FileOutputStream(outputPath.toFile());
              DataOutputStream dataOutputStream = new DataOutputStream(fileOutputStream);
              FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
              CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, aesCipher))
         {
             //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data]
-            dataOutputStream.writeInt(encryptedAeskey.length);
-            dataOutputStream.write(encryptedAeskey);
+            dataOutputStream.writeInt(encryptedAesKey.length);
+            dataOutputStream.write(encryptedAesKey);
             dataOutputStream.write(IV);
 
             //stream encrypted data after the header, with 8KB at a time
@@ -182,7 +183,7 @@ public class FileCrypto {
         try (FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
              DataInputStream dataInputStream = new DataInputStream(fileInputStream))
         {
-            //read encrypted AES
+            //read encrypted AES key length
             int nKeyLength = dataInputStream.readInt();
             //check key length is correct
             if (nKeyLength <= 0 || nKeyLength > MAX_ENCRYPTED_KEY_LENGTH)
@@ -190,17 +191,17 @@ public class FileCrypto {
                 throw new IllegalArgumentException("Not a file encrypted by this tool.");
             }
 
-            byte[] byteEncryptedAeskey = new byte[nKeyLength];
-            dataInputStream.readFully(byteEncryptedAeskey);
+            byte[] byteEncryptedAesKey = new byte[nKeyLength];
+            dataInputStream.readFully(byteEncryptedAesKey);
 
             //read IV
-            byte[] IV = new byte[16];
+            byte[] IV = new byte[IV_BYTES];
             dataInputStream.readFully(IV);
 
             //decrypt AES key with RSA
             Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
             rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
-            byte[] byteAesKey = rsaCipher.doFinal(byteEncryptedAeskey);
+            byte[] byteAesKey = rsaCipher.doFinal(byteEncryptedAesKey);
             SecretKey secretAesKey = new SecretKeySpec(byteAesKey, "AES");
 
             //decrypt file with AES
