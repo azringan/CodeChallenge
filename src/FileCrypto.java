@@ -25,9 +25,9 @@ public class FileCrypto {
     {
         if (args.length != 4 || !(args[0].equals("encrypt") || args[0].equals("decrypt")))
         {
-            System.out.println("Usage:");
-            System.out.println("java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
-            System.out.println("java src/FileCrypto.java decrypt <inputFile> <privateKeyPem> <outputFile>");
+            System.err.println("Usage:");
+            System.err.println("java src/FileCrypto.java encrypt <inputFile> <publicKeyPem> <outputFile>");
+            System.err.println("java src/FileCrypto.java decrypt <inputFile> <privateKeyPem> <outputFile>");
             System.exit(1);
         }
 
@@ -53,17 +53,20 @@ public class FileCrypto {
             System.exit(1);
         }
         
-        // check args[2]
+        // check mode to encrypt/decrypt
         try 
         {
-            if (mode.equals("encrypt")) {
+            if (mode.equals("encrypt")) 
+            {
                 PublicKey publicKey = loadPublicKey(keyPath);
                 encryptFile(inputFilePath, outputFilePath, publicKey);
-                System.out.println("Encrypted: " + outputFilePath);
-            } else if (mode.equals("decrypt")) {
+                System.out.println("Encrypted: " + outputFilePath.toAbsolutePath());
+            }
+            else if (mode.equals("decrypt"))
+            {
                 PrivateKey privateKey = loadPrivateKey(keyPath);
                 decryptFile(inputFilePath, outputFilePath, privateKey);
-                System.out.println("Decrypted: " + outputFilePath);
+                System.out.println("Decrypted: " + outputFilePath.toAbsolutePath());
             }
         }
         catch (BadPaddingException e)
@@ -102,7 +105,7 @@ public class FileCrypto {
 
         if (start < 0 || stop < 0)
         {
-            throw new IllegalArgumentException("Not a PEM " + type + "file.");
+            throw new IllegalArgumentException("Not a PEM " + type + " file.");
         }
 
         String keyBase64 = pem.substring(start + begin.length(), stop);
@@ -121,7 +124,7 @@ public class FileCrypto {
         rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
         byte[] encryptedAeskey = rsaCipher.doFinal(aesSecretKey.getEncoded());
 
-        //ecnrypt file
+        //encrypt file
         byte[] IV = new byte[16];
         SecureRandom secureRandom = new SecureRandom();
         secureRandom.nextBytes(IV);
@@ -146,15 +149,14 @@ public class FileCrypto {
             {
                 dataOutputStream.write(byteBuffer, 0, n);
             }
-            cipherInputStream.close();
         }
     }
 
-    private static void decryptFile(Path inpuPath, Path outpuPath, PrivateKey privateKey) throws Exception
+    private static void decryptFile(Path inputPath, Path outputPath, PrivateKey privateKey) throws Exception
     {
-        try (FileInputStream fileInputStream = new FileInputStream(inpuPath.toFile());
+        try (FileInputStream fileInputStream = new FileInputStream(inputPath.toFile());
              DataInputStream dataInputStream = new DataInputStream(fileInputStream);
-             FileOutputStream fileOutputStream = new FileOutputStream(outpuPath.toFile()))
+             FileOutputStream fileOutputStream = new FileOutputStream(outputPath.toFile()))
         {
             //read encrypted AES
             int nKeyLength = dataInputStream.readInt();
