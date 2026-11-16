@@ -71,12 +71,26 @@ public class FileCrypto {
         }
         catch (BadPaddingException e)
         {
+            Files.deleteIfExists(outputFilePath);
             System.err.println("Decryption failed: wrong private key for this file.");
             System.exit(1);
         }
         catch (IllegalArgumentException e)
         {
+            Files.deleteIfExists(outputFilePath);
             System.err.println(e.getMessage());
+            System.exit(1);
+        }
+        catch (InvalidKeyException e)
+        {
+            Files.deleteIfExists(outputFilePath);
+            System.err.println("Invalid key file: wrong key type or damaged PEM.");
+            System.exit(1);
+        }
+        catch (IOException e)
+        {
+            Files.deleteIfExists(outputFilePath);
+            System.err.println("Decryption failed: file is corrupted or was modified.");
             System.exit(1);
         }
     }
