@@ -54,19 +54,29 @@ public class FileCrypto {
             System.err.println("Output file already exists, not overwriting: " + outputFilePath.toAbsolutePath());
             System.exit(1);
         }
-
-        //check args[2]
-        if (mode.equals("encrypt"))
+        
+        // check args[2]
+        try 
         {
-            PublicKey publicKey = loadPublicKey(PUBLIC_KEY_FILE);
-            encryptFile(inputFilePath, outputFilePath, publicKey);
-            System.out.println("Encrypted: " + outputFilePath);
+            if (mode.equals("encrypt")) {
+                PublicKey publicKey = loadPublicKey(PUBLIC_KEY_FILE);
+                encryptFile(inputFilePath, outputFilePath, publicKey);
+                System.out.println("Encrypted: " + outputFilePath);
+            } else if (mode.equals("decrypt")) {
+                PrivateKey privateKey = loadPrivateKey(PRIVATE_KEY_FILE);
+                decryptFile(inputFilePath, outputFilePath, privateKey);
+                System.out.println("Decrypted: " + outputFilePath);
+            }
         }
-        else if (mode.equals("decrypt"))
+        catch (BadPaddingException e)
         {
-            PrivateKey privateKey = loadPrivateKey(PRIVATE_KEY_FILE);
-            decryptFile(inputFilePath, outputFilePath, privateKey);
-            System.out.println("Decrypted: " + outputFilePath);
+            System.err.println("Decryption failed: wrong private key for this file.");
+            System.exit(1);
+        }
+        catch (IllegalArgumentException e)
+        {
+            System.err.println(e.getMessage());
+            System.exit(1);
         }
     }
 
