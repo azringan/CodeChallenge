@@ -8,21 +8,21 @@
 import java.io.*;
 import java.nio.file.*;
 import java.security.*;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.*;
 import java.util.Base64;
 
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
-public class FileCrypto {
-
-    private static final String RSA_TRANSFORM = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
+public class FileCrypto
+{
+    private static final String RSA_TRANSFORM = "RSA/ECB/OAEPPadding";
     private static final String AES_TRANSFORM = "AES/CBC/PKCS5Padding";
     private static final int BUFFER_SIZE = 8192;
     private static final int MAX_ENCRYPTED_KEY_LENGTH = 1024;   // bytes; RSA-2048 gives 256
     private static final int AES_KEY_BITS = 256;
     private static final int IV_BYTES = 16;
+    private static final OAEPParameterSpec OAEP_SHA256 = new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
 
     public static void main(String[] args) throws Exception
     {
@@ -84,7 +84,7 @@ public class FileCrypto {
             System.err.println(e.getMessage());
             System.exit(1);
         }
-        catch (InvalidKeyException e)
+        catch (InvalidKeySpecException e)
         {
             Files.deleteIfExists(outputFilePath);
             System.err.println("Invalid key file: wrong key type or damaged PEM.");
@@ -142,7 +142,7 @@ public class FileCrypto {
 
         //encrypt AES key with RSA
         Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
-        rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey, OAEP_SHA256);
         byte[] encryptedAesKey = rsaCipher.doFinal(aesSecretKey.getEncoded());
 
         //generate random initialization vector (IV) in AES
@@ -160,6 +160,7 @@ public class FileCrypto {
              CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, aesCipher))
         {
             //write: [4 bytes AES key length][encrypted AES key][16 bytes IV][encrypted data]
+            //write header
             dataOutputStream.writeInt(encryptedAesKey.length);
             dataOutputStream.write(encryptedAesKey);
             dataOutputStream.write(IV);
@@ -175,7 +176,7 @@ public class FileCrypto {
     }
 
     // Decrypt file
-    // Read encrypted AES file and check if it has the correct length.
+    // Read encrypted AES key and check if it has the correct length.
     // Decrypt the AES key with RSA
     // Decrypt the file with AES
     private static void decryptFile(Path inputPath, Path outputPath, PrivateKey privateKey) throws Exception
@@ -200,7 +201,7 @@ public class FileCrypto {
 
             //decrypt AES key with RSA
             Cipher rsaCipher = Cipher.getInstance(RSA_TRANSFORM);
-            rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            rsaCipher.init(Cipher.DECRYPT_MODE, privateKey, OAEP_SHA256);
             byte[] byteAesKey = rsaCipher.doFinal(byteEncryptedAesKey);
             SecretKey secretAesKey = new SecretKeySpec(byteAesKey, "AES");
 
