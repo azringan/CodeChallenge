@@ -40,6 +40,7 @@ public class KeyGen
         savePemKey(privateKeyPath, "PRIVATE KEY", keyPair.getPrivate().getEncoded());
     }
 
+    // Check if any key already exist
     private static boolean isAnyKeyExist(Path publicKeyPath, Path privateKeyPath)
     {
         boolean isPublicKeyExist = Files.exists(publicKeyPath);
